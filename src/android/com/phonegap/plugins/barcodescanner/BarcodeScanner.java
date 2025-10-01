@@ -224,7 +224,7 @@ public class BarcodeScanner extends CordovaPlugin {
                     String format = intent.getStringExtra("SCAN_RESULT_FORMAT");
                     
                     if (format.equals("CODE_128") || format.equals("DATA_MATRIX")) {
-                        raw = parseGS1(raw);  // your own function
+                        raw = normalizeGS1(raw);  // your own function
                     }
                     obj.put(TEXT, raw);
                     obj.put(FORMAT, intent.getStringExtra("SCAN_RESULT_FORMAT"));
