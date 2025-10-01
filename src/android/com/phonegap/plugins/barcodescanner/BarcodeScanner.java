@@ -220,7 +220,13 @@ public class BarcodeScanner extends CordovaPlugin {
             if (resultCode == Activity.RESULT_OK) {
                 JSONObject obj = new JSONObject();
                 try {
-                    obj.put(TEXT, intent.getStringExtra("SCAN_RESULT"));
+                    String raw = intent.getStringExtra("SCAN_RESULT");
+                    String format = intent.getStringExtra("SCAN_RESULT_FORMAT");
+                    
+                    if (format.equals("CODE_128") || format.equals("DATA_MATRIX")) {
+                        raw = parseGS1(raw);  // your own function
+                    }
+                    obj.put(TEXT, raw);
                     obj.put(FORMAT, intent.getStringExtra("SCAN_RESULT_FORMAT"));
                     obj.put(CANCELLED, false);
                 } catch (JSONException e) {
@@ -245,6 +251,46 @@ public class BarcodeScanner extends CordovaPlugin {
             }
         }
     }
+
+    /**
+     * Normalizes a GS1 barcode string by ensuring proper parentheses around known Application Identifiers (AIs).
+     * 
+     * Steps:
+     * 1. Removes all existing parentheses.
+     * 2. Wraps GTIN (AI "01") in parentheses if present at the start.
+     * 3. Wraps Lot/Batch number (AI "10") in parentheses if present anywhere after the GTIN.
+     * 
+     * Example:
+     * Input: "(01)08935250121507(10)V25G138C" or "010893525012150710V25G138C"
+     * Output: "(01)08935250121507(10)V25G138C"
+     *
+     * @param raw The input barcode string (may or may not have parentheses).
+     * @return A properly formatted GS1 barcode string.
+     */
+    private String normalizeGS1(String raw) {
+        if (raw == null || raw.isEmpty()) return raw;
+    
+        // Remove all parentheses to start fresh
+        String cleaned = raw.replace("(", "").replace(")", "");
+    
+        String result = cleaned;
+    
+        // Handle GTIN (AI "01") at start
+        if (cleaned.startsWith("01") && cleaned.length() >= 16) {
+            String gtin = cleaned.substring(2, 16);
+            result = "(01)" + gtin + cleaned.substring(16);
+        }
+    
+        // Handle Lot/Batch (AI "10") anywhere after GTIN
+        int ai10 = result.indexOf("10", 0); // start search from beginning
+        if (ai10 != -1 && ai10 + 2 < result.length()) {
+            String lot = result.substring(ai10 + 2);
+            result = result.substring(0, ai10) + "(10)" + lot;
+        }
+    
+        return result;
+    }
+
 
     /**
      * Initiates a barcode encode.
